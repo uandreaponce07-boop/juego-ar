@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>¡Atrapa nuestros recuerdos! ❤️</title>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            background-color: #120424;
+            font-family: 'Press Start 2P', monospace;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            color: #fff;
+            overflow: hidden;
+        }
+        h1 {
+            font-size: 14px;
+            margin-bottom: 10px;
+            text-align: center;
+            color: #ff4a75;
+            text-shadow: 2px 2px #000;
+        }
+        #game-container {
+            position: relative;
+            width: 400px;
+            height: 600px;
+            border: 4px solid #ff4a75;
+            box-shadow: 0 0 20px #ff4a75;
+            background: linear-gradient(to bottom, #1a0b2e, #341547);
+        }
+        canvas {
+            display: block;
+        }
+        #ui-container {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            right: 15px;
+            display: flex;
+            justify-content: space-between;
+            font-size: 11px;
+            text-shadow: 2px 2px #000;
+            pointer-events: none;
+            z-index: 5;
+        }
+        #ui-lives {
+            color: #ff4a75;
+        }
+        .modal {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.85);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            z-index: 10;
+        }
+        .popup-content {
+            background-color: #25123e;
+            border: 3px solid #00ffff;
+            padding: 20px;
+            text-align: center;
+            border-radius: 10px;
+            max-width: 90%;
+            box-shadow: 0 0 15px #00ffff;
+        }
+        .border-win { border-color: #00ff66; box-shadow: 0 0 15px #00ff66; }
+        .border-lose { border-color: #ff3333; box-shadow: 0 0 15px #ff3333; }
+        
+        .popup-content h2 {
+            font-size: 13px;
+            margin-bottom: 15px;
+            color: #00ffff;
+        }
+        .popup-content img {
+            width: 100%;
+            max-height: 220px;
+            object-fit: cover;
+            border: 2px solid #fff;
+            margin-bottom: 15px;
+            border-radius: 5px;
+        }
+        .popup-content p {
+            font-size: 10px;
+            line-height: 1.6;
+            margin-bottom: 20px;
+            color: #f0e6ff;
+        }
+        .popup-content button {
+            font-family: 'Press Start 2P', monospace;
+            font-size: 10px;
+            background-color: #ff4a75;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            cursor: pointer;
+            border-radius: 5px;
+            box-shadow: 0 4px #b32345;
+        }
+        .popup-content button:active {
+            box-shadow: 0 0px #b32345;
+            transform: translateY(4px);
+        }
+        .hidden {
+            display: none !important;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>¡ATRAPA LOS RECUERDOS! ✨</h1>
+    
+    <div id="game-container">
+        <canvas id="gameCanvas" width="400" height="600"></canvas>
+        
+        <div id="ui-container">
+            <div>PUNTOS: <span id="score">0</span></div>
+            <div id="ui-lives">VIDAS: <span id="lives">❤️❤️❤️</span></div>
+        </div>
+
+        <!-- Pop-up Recuerdos -->
+        <div id="love-popup" class="modal hidden">
+            <div class="popup-content">
+                <h2 id="popup-title">¡LOGRO DESBLOQUEADO! 🎉</h2>
+                <img id="popup-img" src="" alt="Recuerdo">
+                <p id="popup-text">Mensaje aquí...</p>
+                <button onclick="resumeGame()">SEGUIR JUGANDO ❤️</button>
+            </div>
+        </div>
+
+        <!-- Pop-up GAME OVER -->
+        <div id="lose-popup" class="modal hidden">
+            <div class="popup-content border-lose">
+                <h2 style="color: #ff3333;">GAME OVER 💔</h2>
+                <p>¡Oops! Te diste un buen susto con los problemas o dejaste pasar mucho amor. ¿Lo intentas de nuevo mi amor?</p>
+                <button style="background-color: #ff3333; box-shadow: 0 4px #b32323;" onclick="restartGame()">REINTENTAR 🔄</button>
+            </div>
+        </div>
+
+        <!-- Pop-up VICTORIA -->
+        <div id="win-popup" class="modal hidden">
+            <div class="popup-content border-win">
+                <h2 style="color: #00ff66;">¡GANASTE MI CORAZÓN! 🏆👑</h2>
+                <p>¡Felicidades! Lograste juntar todos nuestros recuerdos esquivando las malas vibras. Gracias por este mes maravilloso a mi lado. Eres el mejor novio del mundo. ¡TE AMO! ❤️✨</p>
+                <button style="background-color: #00ff66; box-shadow: 0 4px #00b347; color: #120424;" onclick="restartGame()">JUGAR OTRA VEZ 🎮</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById("gameCanvas");
+        const ctx = canvas.getContext("2d");
+        const scoreElement = document.getElementById("score");
+        const livesElement = document.getElementById("lives");
+        
+        const popup = document.getElementById("love-popup");
+        const losePopup = document.getElementById("lose-popup");
+        const winPopup = document.getElementById("win-popup");
+
+        // --- CONFIGURACIÓN DEL JUEGO ---
+        let score = 0;
+        let lives = 3;
+        let gameActive = true;
+        let objects = [];
+        let spawnTimer = 0;
+        const targetScore = 350; 
+
+        const player = {
+            x: 175,
+            y: 530,
+            width: 50,
+            height: 50,
+            speed: 8,
+            emoji: "🛒" 
+        };
+
+        let recuerdos = {};
+        function initRecuerdos() {
+            recuerdos = {
+                100: {
+                    titulo: "¡100 PUNTOS! 🥰",
+                    img: "foto1.jpg",
+                    texto: "Te amo y te amare siempre"
+                },
+                200: {
+                    titulo: "¡200 PUNTOS! 🍕",
+                    img: "foto2.jpeg",
+                    texto: "Eres lo mejor que me ha pasado, te adoro con todo mi corazon"
+                },
+                300: {
+                    titulo: "¡300 PUNTOS! ✨",
+                    img: "foto3.jpeg",
+                    texto: "Gracias por otro mes increíble a tu lado. Eres mi persona favorita. ¡Feliz mesario! ❤️"
+                }
+            };
+        }
+
+        const buenos = ["🍕", "❤️", "🍦", "🐱", "💖", "🍿"];
+        const malos = ["😡", "💥", "💔", "⏰"];
+
+        let keys = {};
+        window.addEventListener("keydown", (e) => keys[e.key] = true);
+        window.addEventListener("keyup", (e) => keys[e.key] = false);
+
+        canvas.addEventListener("touchmove", (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const touchX = e.touches[0].clientX - rect.left;
+            player.x = touchX - player.width / 2;
+            if (player.x < 0) player.x = 0;
+            if (player.x > canvas.width - player.width) player.x = canvas.width - player.width;
+        });
+
+        // --- CLASE OBJETO ---
+        class FallingObject {
+            constructor() {
+                this.width = 30;
+                this.height = 30;
+                this.x = Math.random() * (canvas.width - this.width);
+                this.y = -30;
+                
+                // AJUSTE: Velocidad mucho más lenta (antes era entre 2.5 y 5.5, ahora entre 1.5 y 2.5)
+                this.speed = Math.random() * 1 + 1.5; 
+                
+                // AJUSTE: 85% probabilidad de cosas buenas, solo 15% malas
+                this.isGood = Math.random() > 0.15; 
+                this.emoji = this.isGood 
+                    ? buenos[Math.floor(Math.random() * buenos.length)]
+                    : malos[Math.floor(Math.random() * malos.length)];
+            }
+
+            update() {
+                this.y += this.speed;
+            }
+
+            draw() {
+                ctx.font = "26px Arial";
+                ctx.fillText(this.emoji, this.x, this.y + this.height);
+            }
+        }
+
+        function checkCollision(rect1, rect2) {
+            return rect1.x < rect2.x + rect2.width &&
+                   rect1.x + rect1.width > rect2.x &&
+                   rect1.y < rect2.y + rect2.height &&
+                   rect1.y + rect1.height > rect2.y;
+        }
+
+        function updateLivesUI() {
+            livesElement.innerText = "❤️".repeat(lives) + "🖤".repeat(3 - lives);
+        }
+
+        function checkMilestones() {
+            if (score >= targetScore) {
+                gameActive = false;
+                winPopup.classList.remove("hidden");
+                return;
+            }
+
+            if (recuerdos[score]) {
+                gameActive = false;
+                document.getElementById("popup-title").innerText = recuerdos[score].titulo;
+                document.getElementById("popup-img").src = recuerdos[score].img;
+                document.getElementById("popup-text").innerText = recuerdos[score].texto;
+                popup.classList.remove("hidden");
+                delete recuerdos[score];
+            }
+        }
+
+        function resumeGame() {
+            popup.classList.add("hidden");
+            gameActive = true;
+            gameLoop();
+        }
+
+        function restartGame() {
+            score = 0;
+            lives = 3;
+            objects = [];
+            spawnTimer = 0;
+            player.x = 175;
+            scoreElement.innerText = score;
+            updateLivesUI();
+            initRecuerdos();
+            
+            losePopup.classList.add("hidden");
+            winPopup.classList.add("hidden");
+            popup.classList.add("hidden");
+            
+            gameActive = true;
+            gameLoop();
+        }
+
+        // --- LOOP PRINCIPAL ---
+        function gameLoop() {
+            if (!gameActive) return;
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            if (keys["ArrowLeft"] && player.x > 0) player.x -= player.speed;
+            if (keys["ArrowRight"] && player.x < canvas.width - player.width) player.x += player.speed;
+
+            ctx.font = "40px Arial";
+            ctx.fillText(player.emoji, player.x, player.y + player.height);
+
+            // AJUSTE: Generar objetos con menos frecuencia (antes cada 35 frames, ahora cada 75 frames)
+            spawnTimer++;
+            if (spawnTimer > 75) { 
+                objects.push(new FallingObject());
+                spawnTimer = 0;
+            }
+
+            for (let i = objects.length - 1; i >= 0; i--) {
+                let obj = objects[i];
+                obj.update();
+                obj.draw();
+
+                if (checkCollision(player, obj)) {
+                    if (obj.isGood) {
+                        score += 10;
+                        scoreElement.innerText = score;
+                        checkMilestones();
+                    } else {
+                        lives--;
+                        updateLivesUI();
+                        if (lives <= 0) {
+                            gameActive = false;
+                            losePopup.classList.remove("hidden");
+                        }
+                    }
+                    objects.splice(i, 1);
+                    continue;
+                }
+
+                if (obj.y > canvas.height) {
+                    if (obj.isGood) {
+                        lives--;
+                        updateLivesUI();
+                        if (lives <= 0) {
+                            gameActive = false;
+                            losePopup.classList.remove("hidden");
+                        }
+                    }
+                    objects.splice(i, 1);
+                }
+            }
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        initRecuerdos();
+        gameLoop();
+    </script>
+</body>
+</html>
